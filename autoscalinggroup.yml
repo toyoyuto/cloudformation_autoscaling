@@ -1,0 +1,440 @@
+AWSTemplateFormatVersion: 
+  "2010-09-09"
+Description:
+  Amazon Web Services LaunchTemplate & Network & server construction
+  
+Metadata:
+  # コンソールでパラメータをグループ化およびソートする方法を定義するメタデータキー
+  "AWS::CloudFormation::Interface":
+    # パラメーターグループとそのグループに含めるパラメーターの定義
+    ParameterGroups: 
+      # Project名に関するグループ
+      - Label: 
+          default: "Project Name Prefix"
+        Parameters: 
+          - PJPrefix
+      # ネットワーク設定に関するグループ
+      - Label: 
+          default: "Network Configuration"
+        # 記述された順番に表示される
+        Parameters: 
+          - KeyName
+
+# ------------------------------------------------------------#
+# Input Parameters
+# ------------------------------------------------------------# 
+Parameters:
+  PJPrefix:
+    Type: String
+  KeyName:
+    Type: "AWS::EC2::KeyPair::KeyName"
+  
+Resources: 
+# ------------------------------------------------------------#
+#  VPC
+# ------------------------------------------------------------#
+# VPC Create
+  VPC: 
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      # VPC に対して DNS 解決がサポートされているか
+      EnableDnsSupport: "true"
+      # VPC 内に起動されるインスタンスが DNS ホスト名を取得するか
+      EnableDnsHostnames: "true"
+      # VPC 内に起動されるインスタンスの許可されているテナンシー
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-vpc"
+
+# InternetGateway Create
+  InternetGateway: 
+    Type: "AWS::EC2::InternetGateway"
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-igw"
+
+# IGW Attach
+  InternetGatewayAttachment: 
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties: 
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC 
+
+# ------------------------------------------------------------#
+#  Subnet
+# ------------------------------------------------------------#
+#  Subnet
+# ------------------------------------------------------------#          
+# Public1 Subnet Create
+  Public1Subnet: 
+    Type: "AWS::EC2::Subnet"
+    Properties: 
+      AvailabilityZone: "ap-northeast-1a"
+      CidrBlock: "10.0.0.0/24"
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-public1-subnet"
+                    
+# Public2 Subnet Create
+  Public2Subnet: 
+    Type: "AWS::EC2::Subnet"
+    Properties: 
+      AvailabilityZone: "ap-northeast-1c"
+      CidrBlock: "10.0.1.0/24"
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-public2-subnet"
+
+# Private1 Subnet Create
+  Private1Subnet: 
+    Type: "AWS::EC2::Subnet"
+    Properties: 
+      AvailabilityZone: "ap-northeast-1a"
+      CidrBlock: "10.0.10.0/24"
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-private1-subnet"
+                    
+# Private2 Subnet Create
+  Private2Subnet: 
+    Type: "AWS::EC2::Subnet"
+    Properties: 
+      AvailabilityZone: "ap-northeast-1c"
+      CidrBlock: "10.0.11.0/24"
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-private2-subnet"
+# ------------------------------------------------------------#
+#  RouteTable
+# ------------------------------------------------------------#          
+# Public RouteTable Create
+  PublicRouteTable: 
+    Type: "AWS::EC2::RouteTable"
+    Properties: 
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-public1-route"
+
+# # Private RouteTable Create
+#   PrivateRouteTable: 
+#     Type: "AWS::EC2::RouteTable"
+#     Properties: 
+#       VpcId: !Ref VPC 
+#       Tags: 
+#         - Key: Name
+#           Value: !Sub "${PJPrefix}-private1-route"
+
+# ------------------------------------------------------------#
+# Routing
+# ------------------------------------------------------------# 
+# Public Route Create
+  PublicRoute: 
+    Type: "AWS::EC2::Route"
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable 
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway 
+
+  # PrivateRoute: 
+  #   Type: "AWS::EC2::Route"
+  #   Properties: 
+  #     RouteTableId: !Ref PrivateRouteTable 
+  #     DestinationCidrBlock: "0.0.0.0/0"
+  #     NatGatewayId: !Ref NATGateway 
+
+# ------------------------------------------------------------#
+# RouteTable Associate
+# ------------------------------------------------------------# 
+# Public1RouteTable Associate PublicSubnet
+  Public1SubnetRouteTableAssociation: 
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties: 
+      SubnetId: !Ref Public1Subnet
+      RouteTableId: !Ref PublicRouteTable
+  Public2SubnetRouteTableAssociation: 
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties: 
+      SubnetId: !Ref Public2Subnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # Private1SubnetRouteTableAssociation: 
+  #   Type: "AWS::EC2::SubnetRouteTableAssociation"
+  #   Properties: 
+  #     SubnetId: !Ref Private1Subnet
+  #     RouteTableId: !Ref PrivateRouteTable
+  # Private2SubnetRouteTableAssociation: 
+  #   Type: "AWS::EC2::SubnetRouteTableAssociation"
+  #   Properties: 
+  #     SubnetId: !Ref Private2Subnet
+  #     RouteTableId: !Ref PrivateRouteTable
+
+# ------------------------------------------------------------#
+# SecurityGroup
+# ------------------------------------------------------------# 
+  WebServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: web-sg-cf
+      GroupDescription: web server sg
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-web-server-sg"
+# ------------------------------------------------------------#
+# LaunchTemplate
+# ------------------------------------------------------------# 
+  Ec2InstanceLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      # 起動テンプレートの名前
+      LaunchTemplateName: !Sub "${PJPrefix}-web-server-template"
+      # 起動テンプレートの情報
+      LaunchTemplateData:
+        # リソースの作成時にリソースに適用するタグを指定
+        TagSpecifications:
+        # ------------------------------------------------------
+        # タグ付けするリソースのタイプ。
+        # 現在、作成中のタグ付けをサポートするリソースタイプは、instance および volume 
+        # ------------------------------------------------------
+        - ResourceType: instance
+          Tags:
+          - Key: Name
+            Value: !Sub "${PJPrefix}-web-server"
+        UserData:
+          Fn::Base64: |
+              #!/bin/bash
+              sudo yum -y update
+              sudo yum -y install httpd
+              sudo systemctl start httpd.service
+              sudo systemctl enable httpd.service
+        KeyName: !Ref KeyName
+        ImageId: ami-01748a72bed07727c
+        InstanceType: t2.micro
+        NetworkInterfaces: 
+        # IPv4 アドレスを割り当てるか
+        - AssociatePublicIpAddress: "false"
+          # ------------------------------------------------------
+          # アタッチの順序におけるネットワークインターフェイスの位置。
+          # ネットワークインターフェイスを指定する場合必須
+          # ------------------------------------------------------
+          DeviceIndex: "0"
+          Groups:
+            - !Ref WebServerSG
+# ------------------------------------------------------------#
+#  Target Group
+# ------------------------------------------------------------#
+  TargetGroup: 
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties: 
+      VpcId: !Ref VPC
+      Name: !Sub "${PJPrefix}-tg"
+      # ターゲットにトラフィックをルーティングするために使用するプロトコル
+      Protocol: HTTP
+      Port: 80
+      # ターゲットでヘルスチェックを実行するときにロードバランサーが使用するプロトコル
+      HealthCheckProtocol: HTTP
+      # ヘルスチェックのターゲットの送信先である
+      HealthCheckPath: "/"
+      # ターゲットでヘルスチェックを実行するときにロードバランサーが使用するポート
+      HealthCheckPort: "traffic-port"
+      # 非正常なインスタンスが正常であると見なすまでに必要なヘルスチェックの連続成功回数
+      HealthyThresholdCount: 2
+      # ターゲットが異常であると見なされるまでに必要なヘルスチェックの連続失敗回数
+      UnhealthyThresholdCount: 2
+      # ヘルスチェックを失敗と見なす、ターゲットからレスポンスがない時間
+      HealthCheckTimeoutSeconds: 5
+      # 個々のターゲットのヘルスチェックの概算間隔 
+      HealthCheckIntervalSeconds: 10
+      # ターゲットからの正常なレスポンスを確認するために使用する HTTP コード
+      Matcher: 
+        HttpCode: 200
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-tg"
+      # ターゲットグループの属性
+      TargetGroupAttributes:
+        # 登録解除するターゲットの状態が draining から unused に変わるのをELBが待機する時間
+        - Key: "deregistration_delay.timeout_seconds"
+          Value: 300
+        # スティッキーセッションが有効か¥
+        - Key: "stickiness.enabled"
+          Value: false
+        # スティッキーセッションのタイプ
+        - Key: "stickiness.type"
+          Value: lb_cookie
+        # クライアントからのリクエストを同じターゲットにルーティングする必要がある期間
+        - Key: "stickiness.lb_cookie.duration_seconds"
+          Value: 86400
+
+      # 起動先がまただないため
+      # Targets: 
+      #   - Id: !Ref Web1Server
+      #     Port: 80
+      #   - Id: !Ref Web2Server
+      #     Port: 80
+
+# ------------------------------------------------------------#
+#  ALB
+# ------------------------------------------------------------#
+  InternetALB: 
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties: 
+      Name: !Sub "${PJPrefix}-alb"
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-alb"
+      # 内部向けかインターネット向け
+      Scheme: "internet-facing"
+      # ロードバランサーの属性
+      LoadBalancerAttributes:
+        # 削除保護が有効化されているかどうかを示します
+        - Key: "deletion_protection.enabled"
+          Value: false
+          # アイドルタイムアウト値
+        - Key: "idle_timeout.timeout_seconds"
+          Value: 60
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      # 起動するサブネット
+      Subnets: 
+        - !Ref Public1Subnet
+        - !Ref Public2Subnet
+
+  ALBListener: 
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties: 
+      # デフォルトルールのアクション
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          # ルールアクションタイプ
+          # forwardは指定されたターゲットグループにリクエストを転送
+          Type: forward
+      LoadBalancerArn: !Ref InternetALB
+      Port: 80
+      Protocol: HTTP
+
+  # InternetALBのセキュリティグループ
+  ALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: !Ref VPC
+      GroupName: !Sub "${PJPrefix}-alb-sg"
+      GroupDescription: "-"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${PJPrefix}-alb-sg"
+
+  # ALBSecurityGroup:
+  #   Type: "AWS::EC2::SecurityGroup"
+  #   Properties:
+  #     VpcId: !Ref VPC
+  #     GroupName: !Sub "${PJPrefix}-alb-sg"
+  #     GroupDescription: "-"
+  #     Tags:
+  #       - Key: "Name"
+  #         Value: !Sub "${PJPrefix}-alb-sg"
+  # 後でちゃんと設定する
+  # # ALBSecurityGroupのインプットルール
+  # ALBSecurityGroupIngress: 
+  #   Type: "AWS::EC2::SecurityGroupIngress"
+  #   Properties: 
+  #     IpProtocol: tcp
+  #     FromPort: 80
+  #     ToPort: 80
+  #     CidrIp: "0.0.0.0/0"
+  #     GroupId: !GetAtt [ ALBSecurityGroup, GroupId ]
+    
+  # # ALBSecurityGroupのアウトプットルール
+  # ALBSecurityGroupEgress1: 
+  #   Type: "AWS::EC2::SecurityGroupEgress"
+  #   Properties: 
+  #     IpProtocol: tcp
+  #     FromPort: 80
+  #     ToPort: 80
+  #     SourceSecurityGroupId: !GetAtt [ Web1ServerSG, GroupId ] 
+  #     GroupId: !GetAtt [ ALBSecurityGroup, GroupId ]
+  # ALBSecurityGroupEgress2: 
+  #   Type: "AWS::EC2::SecurityGroupEgress"
+  #   Properties: 
+  #     IpProtocol: tcp
+  #     FromPort: 80
+  #     ToPort: 80
+  #     SourceSecurityGroupId: !GetAtt [ Web2ServerSG, GroupId ] 
+  #     GroupId: !GetAtt [ ALBSecurityGroup, GroupId ]    
+
+
+
+# ------------------------------------------------------------#
+# AutoScaling Group
+# ------------------------------------------------------------#    
+  asgtestAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub "${PJPrefix}-autoscalinggroup"
+      # Virtual Private Cloud (VPC) のサブネット ID のリスト
+      # 起動させるサブネットを指定
+      VPCZoneIdentifier:
+        - !Ref Public1Subnet
+        - !Ref Public2Subnet
+
+      # 起動テンプレート
+      LaunchTemplate: !Ref asgtestLaunchConfiguration
+      # ALBの場合紐づけるTargetGroupを指定する
+      TargetGroupARNs:
+      　- !Ref TargetGroup
+      #　台数設定
+      DesiredCapacity: 2
+      MaxSize: 2
+      MinSize: 2
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${EnvType}
+          PropagateAtLaunch: true
+      # TerminationPolicies:
+      #  - NewestInstance    
+# # # ------------------------------------------------------------#
+# # # Output Parameters
+# # # ------------------------------------------------------------#                
+Outputs:
+  VPC:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${PJPrefix}-vpc"
+  PublicSubnet:
+    Value: !Ref PublicSubnet
+    Export:
+      Name: !Sub "${PJPrefix}-public-subnet"
+  Ec2InstanceLaunchTemplate:
+    Value: !Ref Ec2InstanceLaunchTemplate
+    Export:
+      Name: !Sub "${PJPrefix}-web-server-template"
+  Ec2Instance:
+    Value: !Ref Ec2Instance
+    Export:
+      Name: !Sub "${PJPrefix}-web-server"
