@@ -388,12 +388,10 @@ Resources:
   #     SourceSecurityGroupId: !GetAtt [ Web2ServerSG, GroupId ] 
   #     GroupId: !GetAtt [ ALBSecurityGroup, GroupId ]    
 
-
-
 # ------------------------------------------------------------#
 # AutoScaling Group
 # ------------------------------------------------------------#    
-  asgtestAutoScalingGroup:
+  AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       AutoScalingGroupName: !Sub "${PJPrefix}-autoscalinggroup"
@@ -402,39 +400,23 @@ Resources:
       VPCZoneIdentifier:
         - !Ref Public1Subnet
         - !Ref Public2Subnet
-
       # 起動テンプレート
-      LaunchTemplate: !Ref asgtestLaunchConfiguration
+      LaunchTemplate:
+        # 起動テンプレートのID
+        LaunchTemplateId: !Ref 'Ec2InstanceLaunchTemplate'
+        # 起動テンプレートのバージョン番号
+        Version: !GetAtt 'Ec2InstanceLaunchTemplate.LatestVersionNumber'
+
       # ALBの場合紐づけるTargetGroupを指定する
       TargetGroupARNs:
-      　- !Ref TargetGroup
-      #　台数設定
+        - !Ref TargetGroup
+      # 台数設定
       DesiredCapacity: 2
       MaxSize: 2
       MinSize: 2
       Tags:
         - Key: Name
-          Value: !Sub ${SystemName}-${EnvType}
+          Value: !Sub "${PJPrefix}-server"
           PropagateAtLaunch: true
       # TerminationPolicies:
-      #  - NewestInstance    
-# # # ------------------------------------------------------------#
-# # # Output Parameters
-# # # ------------------------------------------------------------#                
-Outputs:
-  VPC:
-    Value: !Ref VPC
-    Export:
-      Name: !Sub "${PJPrefix}-vpc"
-  PublicSubnet:
-    Value: !Ref PublicSubnet
-    Export:
-      Name: !Sub "${PJPrefix}-public-subnet"
-  Ec2InstanceLaunchTemplate:
-    Value: !Ref Ec2InstanceLaunchTemplate
-    Export:
-      Name: !Sub "${PJPrefix}-web-server-template"
-  Ec2Instance:
-    Value: !Ref Ec2Instance
-    Export:
-      Name: !Sub "${PJPrefix}-web-server"
+      #  - NewestInstance
