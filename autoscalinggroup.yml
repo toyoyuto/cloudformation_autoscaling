@@ -221,7 +221,7 @@ Resources:
 # ------------------------------------------------------------#
 # LaunchTemplate
 # ------------------------------------------------------------# 
-  Ec2InstanceLaunchTemplate:
+  EC2InstanceLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       # 起動テンプレートの名前
@@ -352,7 +352,6 @@ Resources:
       Protocol: HTTP
 
   # InternetALBのセキュリティグループ
-
   ALBSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -397,9 +396,9 @@ Resources:
       # 起動テンプレート
       LaunchTemplate:
         # 起動テンプレートのID
-        LaunchTemplateId: !Ref 'Ec2InstanceLaunchTemplate'
+        LaunchTemplateId: !Ref 'EC2InstanceLaunchTemplate'
         # 起動テンプレートのバージョン番号
-        Version: !GetAtt 'Ec2InstanceLaunchTemplate.LatestVersionNumber'
+        Version: !GetAtt 'EC2InstanceLaunchTemplate.LatestVersionNumber'
 
       # ALBの場合紐づけるTargetGroupを指定する
       TargetGroupARNs:
@@ -414,3 +413,50 @@ Resources:
           PropagateAtLaunch: true
       # TerminationPolicies:
       #  - NewestInstance
+
+# ------------------------------------------------------------#
+# Output Parameters
+# ------------------------------------------------------------#                
+Outputs:
+# VPC
+  VPC:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${PJPrefix}-vpc"
+
+# Subnet
+  Public1Subnet:
+    Value: !Ref Public1Subnet
+    Export:
+      Name: !Sub "${PJPrefix}-public1-subnet"
+
+  Public2Subnet:
+    Value: !Ref Public2Subnet
+    Export:
+      Name: !Sub "${PJPrefix}-public2-subnet"
+      
+  Public1Subnet:
+    Value: !Ref Public1Subnet
+    Export:
+      Name: !Sub "${PJPrefix}-public1-subnet"
+
+  Public2Subnet:
+    Value: !Ref Public2Subnet
+    Export:
+      Name: !Sub "${PJPrefix}-public2-subnet"
+    
+# LaunchTemplate
+  EC2InstanceLaunchTemplate:
+    Value: !Ref EC2InstanceLaunchTemplate
+    Export:
+      Name: !Sub "${PJPrefix}-web1-server"
+# Target Group
+  TargetGroup:
+    Value: !Ref TargetGroup
+    Export:
+      Name: !Sub "${PJPrefix}-tg"
+# ALB
+  InternetALB:
+    Value: !Ref InternetALB
+    Export:
+      Name: !Sub "${PJPrefix}-alb"
