@@ -65,9 +65,7 @@ Resources:
 
 # ------------------------------------------------------------#
 #  Subnet
-# ------------------------------------------------------------#
-#  Subnet
-# ------------------------------------------------------------#          
+# ------------------------------------------------------------#     
 # Public1 Subnet Create
   Public1Subnet: 
     Type: "AWS::EC2::Subnet"
@@ -111,6 +109,29 @@ Resources:
       Tags: 
         - Key: Name
           Value: !Sub "${PJPrefix}-private2-subnet"
+
+# ------------------------------------------------------------#
+#  NAT Gateway
+# ------------------------------------------------------------#
+  NATGateway: 
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      # NAT ゲートウェイに関連付ける Elastic IPアドレスの割り当て ID
+      AllocationId: !GetAtt NATGatewayAEIP.AllocationId 
+      SubnetId: !Ref Public1Subnet
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-natgw"
+  # NATGateway For Elastic IP Create
+  NATGatewayAEIP: 
+    Type: "AWS::EC2::EIP"
+    Properties:
+      # ------------------------------------------------------
+      # Elastic IP アドレスが VPC のインスタンスで使用するか、
+      # EC2-Classic のインスタンスで使用するか
+      # ------------------------------------------------------
+      Domain: vpc  
+
 # ------------------------------------------------------------#
 #  RouteTable
 # ------------------------------------------------------------#          
@@ -123,14 +144,14 @@ Resources:
         - Key: Name
           Value: !Sub "${PJPrefix}-public1-route"
 
-# # Private RouteTable Create
-#   PrivateRouteTable: 
-#     Type: "AWS::EC2::RouteTable"
-#     Properties: 
-#       VpcId: !Ref VPC 
-#       Tags: 
-#         - Key: Name
-#           Value: !Sub "${PJPrefix}-private1-route"
+# Private RouteTable Create
+  PrivateRouteTable: 
+    Type: "AWS::EC2::RouteTable"
+    Properties: 
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-private1-route"
 
 # ------------------------------------------------------------#
 # Routing
@@ -143,12 +164,12 @@ Resources:
       DestinationCidrBlock: "0.0.0.0/0"
       GatewayId: !Ref InternetGateway 
 
-  # PrivateRoute: 
-  #   Type: "AWS::EC2::Route"
-  #   Properties: 
-  #     RouteTableId: !Ref PrivateRouteTable 
-  #     DestinationCidrBlock: "0.0.0.0/0"
-  #     NatGatewayId: !Ref NATGateway 
+  PrivateRoute: 
+    Type: "AWS::EC2::Route"
+    Properties: 
+      RouteTableId: !Ref PrivateRouteTable 
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NATGateway 
 
 # ------------------------------------------------------------#
 # RouteTable Associate
@@ -165,16 +186,16 @@ Resources:
       SubnetId: !Ref Public2Subnet
       RouteTableId: !Ref PublicRouteTable
 
-  # Private1SubnetRouteTableAssociation: 
-  #   Type: "AWS::EC2::SubnetRouteTableAssociation"
-  #   Properties: 
-  #     SubnetId: !Ref Private1Subnet
-  #     RouteTableId: !Ref PrivateRouteTable
-  # Private2SubnetRouteTableAssociation: 
-  #   Type: "AWS::EC2::SubnetRouteTableAssociation"
-  #   Properties: 
-  #     SubnetId: !Ref Private2Subnet
-  #     RouteTableId: !Ref PrivateRouteTable
+  Private1SubnetRouteTableAssociation: 
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties: 
+      SubnetId: !Ref Private1Subnet
+      RouteTableId: !Ref PrivateRouteTable
+  Private2SubnetRouteTableAssociation: 
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties: 
+      SubnetId: !Ref Private2Subnet
+      RouteTableId: !Ref PrivateRouteTable
 
 # ------------------------------------------------------------#
 # SecurityGroup
@@ -331,62 +352,35 @@ Resources:
       Protocol: HTTP
 
   # InternetALBのセキュリティグループ
+
   ALBSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
       VpcId: !Ref VPC
       GroupName: !Sub "${PJPrefix}-alb-sg"
       GroupDescription: "-"
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
       Tags:
         - Key: "Name"
           Value: !Sub "${PJPrefix}-alb-sg"
-
-  # ALBSecurityGroup:
-  #   Type: "AWS::EC2::SecurityGroup"
-  #   Properties:
-  #     VpcId: !Ref VPC
-  #     GroupName: !Sub "${PJPrefix}-alb-sg"
-  #     GroupDescription: "-"
-  #     Tags:
-  #       - Key: "Name"
-  #         Value: !Sub "${PJPrefix}-alb-sg"
-  # 後でちゃんと設定する
-  # # ALBSecurityGroupのインプットルール
-  # ALBSecurityGroupIngress: 
-  #   Type: "AWS::EC2::SecurityGroupIngress"
-  #   Properties: 
-  #     IpProtocol: tcp
-  #     FromPort: 80
-  #     ToPort: 80
-  #     CidrIp: "0.0.0.0/0"
-  #     GroupId: !GetAtt [ ALBSecurityGroup, GroupId ]
+  # ALBSecurityGroupのインプットルール
+  ALBSecurityGroupIngress: 
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties: 
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: "0.0.0.0/0"
+      GroupId: !GetAtt [ ALBSecurityGroup, GroupId ]
     
-  # # ALBSecurityGroupのアウトプットルール
-  # ALBSecurityGroupEgress1: 
-  #   Type: "AWS::EC2::SecurityGroupEgress"
-  #   Properties: 
-  #     IpProtocol: tcp
-  #     FromPort: 80
-  #     ToPort: 80
-  #     SourceSecurityGroupId: !GetAtt [ Web1ServerSG, GroupId ] 
-  #     GroupId: !GetAtt [ ALBSecurityGroup, GroupId ]
-  # ALBSecurityGroupEgress2: 
-  #   Type: "AWS::EC2::SecurityGroupEgress"
-  #   Properties: 
-  #     IpProtocol: tcp
-  #     FromPort: 80
-  #     ToPort: 80
-  #     SourceSecurityGroupId: !GetAtt [ Web2ServerSG, GroupId ] 
-  #     GroupId: !GetAtt [ ALBSecurityGroup, GroupId ]    
+  # ALBSecurityGroupのアウトプットルール
+  ALBSecurityGroupEgress: 
+    Type: "AWS::EC2::SecurityGroupEgress"
+    Properties: 
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !GetAtt [ WebServerSG, GroupId ] 
+      GroupId: !GetAtt [ ALBSecurityGroup, GroupId ] 
 
 # ------------------------------------------------------------#
 # AutoScaling Group
@@ -398,8 +392,8 @@ Resources:
       # Virtual Private Cloud (VPC) のサブネット ID のリスト
       # 起動させるサブネットを指定
       VPCZoneIdentifier:
-        - !Ref Public1Subnet
-        - !Ref Public2Subnet
+        - !Ref Private1Subnet
+        - !Ref Private2Subnet
       # 起動テンプレート
       LaunchTemplate:
         # 起動テンプレートのID
