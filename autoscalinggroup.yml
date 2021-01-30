@@ -289,27 +289,6 @@ Resources:
       Tags: 
         - Key: Name
           Value: !Sub "${PJPrefix}-tg"
-      # ターゲットグループの属性
-      TargetGroupAttributes:
-        # 登録解除するターゲットの状態が draining から unused に変わるのをELBが待機する時間
-        - Key: "deregistration_delay.timeout_seconds"
-          Value: 300
-        # スティッキーセッションが有効か¥
-        - Key: "stickiness.enabled"
-          Value: false
-        # スティッキーセッションのタイプ
-        - Key: "stickiness.type"
-          Value: lb_cookie
-        # クライアントからのリクエストを同じターゲットにルーティングする必要がある期間
-        - Key: "stickiness.lb_cookie.duration_seconds"
-          Value: 86400
-
-      # 起動先がまただないため
-      # Targets: 
-      #   - Id: !Ref Web1Server
-      #     Port: 80
-      #   - Id: !Ref Web2Server
-      #     Port: 80
 
 # ------------------------------------------------------------#
 #  ALB
@@ -361,6 +340,7 @@ Resources:
       Tags:
         - Key: "Name"
           Value: !Sub "${PJPrefix}-alb-sg"
+
   # ALBSecurityGroupのインプットルール
   ALBSecurityGroupIngress: 
     Type: "AWS::EC2::SecurityGroupIngress"
@@ -411,8 +391,6 @@ Resources:
         - Key: Name
           Value: !Sub "${PJPrefix}-server"
           PropagateAtLaunch: true
-      # TerminationPolicies:
-      #  - NewestInstance
 
 # ------------------------------------------------------------#
 # Output Parameters
